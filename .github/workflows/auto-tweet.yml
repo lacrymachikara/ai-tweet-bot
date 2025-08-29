@@ -2,18 +2,17 @@ name: AI Tweet Bot
 
 on:
   schedule:
-    # JST時間での10回投稿スケジュール
-    - cron: '0 0 * * *'   # 09:00 JST (00:00 UTC)
-    - cron: '0 1 * * *'   # 10:00 JST (01:00 UTC)
-    - cron: '0 3 * * *'   # 12:00 JST (03:00 UTC)
-    - cron: '0 5 * * *'   # 14:00 JST (05:00 UTC)
-    - cron: '0 7 * * *'   # 16:00 JST (07:00 UTC)
-    - cron: '0 9 * * *'   # 18:00 JST (09:00 UTC)
-    - cron: '0 11 * * *'  # 20:00 JST (11:00 UTC)
-    - cron: '0 13 * * *'  # 22:00 JST (13:00 UTC)
-    - cron: '0 15 * * *'  # 00:00 JST (15:00 UTC)
-    - cron: '0 17 * * *'  # 02:00 JST (17:00 UTC)
-  workflow_dispatch:      # 手動実行用
+    - cron: '0 0 * * *'   # 09:00 JST
+    - cron: '0 1 * * *'   # 10:00 JST
+    - cron: '0 3 * * *'   # 12:00 JST
+    - cron: '0 5 * * *'   # 14:00 JST
+    - cron: '0 7 * * *'   # 16:00 JST
+    - cron: '0 9 * * *'   # 18:00 JST
+    - cron: '0 11 * * *'  # 20:00 JST
+    - cron: '0 13 * * *'  # 22:00 JST
+    - cron: '0 15 * * *'  # 00:00 JST
+    - cron: '0 17 * * *'  # 02:00 JST
+  workflow_dispatch:
 
 jobs:
   ai-tweet-bot:
@@ -28,7 +27,6 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        cache: 'pip'
         
     - name: Install Python Dependencies
       run: |
@@ -45,5 +43,5 @@ jobs:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
         echo "🚀 AI自動ツイートボット開始"
-        python tweet_bot.py
+        python src/tweet_bot.py
         echo "✅ AI自動ツイートボット完了"
