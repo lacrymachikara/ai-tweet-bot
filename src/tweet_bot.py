@@ -39,21 +39,17 @@ class AITweetBot:
             logger.error(f"Twitter API認証エラー: {e}")
             raise
 
-    def get_reddit_ai_trends(self):
-        """RedditからAI関連のトレンド情報を取得"""
+    def get_viral_ai_content(self):
+        """海外でバズってるAI記事・情報を収集"""
         try:
-            subreddits = [
-                'MachineLearning',
-                'artificial', 
-                'MediaSynthesis',
-                'StableDiffusion',
-                'ChatGPT'
-            ]
+            viral_content = []
             
-            trends = []
+            # Reddit AI関連の人気投稿
+            subreddits = ['MachineLearning', 'artificial', 'OpenAI', 'MediaSynthesis']
+            
             for subreddit in subreddits:
                 try:
-                    url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=10"
+                    url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=5"
                     headers = {'User-Agent': 'AI-Tweet-Bot/1.0'}
                     response = requests.get(url, headers=headers, timeout=10)
                     
@@ -61,169 +57,153 @@ class AITweetBot:
                         data = response.json()
                         for post in data['data']['children']:
                             post_data = post['data']
-                            if post_data['ups'] > 100:  # 人気投稿のみ
-                                trends.append({
+                            if post_data['ups'] > 500:  # 高エンゲージメント
+                                viral_content.append({
                                     'title': post_data['title'],
                                     'score': post_data['ups'],
-                                    'subreddit': subreddit,
-                                    'url': post_data['url']
+                                    'source': 'reddit',
+                                    'url': post_data['url'],
+                                    'subreddit': subreddit
                                 })
                 except Exception as e:
-                    logger.warning(f"Reddit {subreddit} 取得エラー: {e}")
-                    continue
-                
-                time.sleep(1)  # レート制限対策
-                
-            return sorted(trends, key=lambda x: x['score'], reverse=True)[:5]
-        
-        except Exception as e:
-            logger.error(f"Reddit情報取得エラー: {e}")
-            return []
-
-    def get_ai_news_feeds(self):
-        """AIニュースサイトからRSS情報を取得"""
-        try:
-            rss_feeds = [
-                'https://feeds.feedburner.com/venturebeat/SZYF',
-                'https://rss.cnn.com/rss/edition.rss',
-                'https://techcrunch.com/feed/'
-            ]
-            
-            news_items = []
-            for feed_url in rss_feeds:
-                try:
-                    feed = feedparser.parse(feed_url)
-                    for entry in feed.entries[:3]:
-                        if any(keyword in entry.title.lower() for keyword in 
-                              ['ai', 'artificial intelligence', 'machine learning', 
-                               'chatgpt', 'openai', 'midjourney', 'stable diffusion']):
-                            news_items.append({
-                                'title': entry.title,
-                                'published': entry.get('published', ''),
-                                'link': entry.link
-                            })
-                except Exception as e:
-                    logger.warning(f"RSS feed {feed_url} エラー: {e}")
+                    logger.warning(f"Reddit {subreddit} エラー: {e}")
                     continue
                     
-            return news_items[:5]
-        
-        except Exception as e:
-            logger.error(f"AIニュース取得エラー: {e}")
-            return []
-
-    def get_github_ai_trends(self):
-        """GitHubからトレンドAIプロジェクトを取得"""
-        try:
-            url = "https://api.github.com/search/repositories"
-            params = {
-                'q': 'artificial-intelligence OR machine-learning OR stable-diffusion',
-                'sort': 'stars',
-                'order': 'desc',
-                'per_page': 5
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                projects = []
-                for repo in data['items']:
-                    projects.append({
-                        'name': repo['name'],
-                        'description': repo['description'],
-                        'stars': repo['stargazers_count'],
-                        'language': repo.get('language', 'Unknown')
-                    })
-                return projects
-            
-            return []
-        
-        except Exception as e:
-            logger.error(f"GitHub トレンド取得エラー: {e}")
-            return []
-
-    def extract_ai_keywords(self, text):
-        """テキストからAI関連キーワードを抽出"""
-        ai_keywords = [
-            'GPT', 'ChatGPT', 'OpenAI', 'Claude', 'Gemini',
-            'Midjourney', 'DALL-E', 'Stable Diffusion', 'Flux',
-            'Veo3', 'Kling', 'Seedance', 'Pika', 'Dreamina',
-            'LLM', 'Transformer', 'Neural Network', 'Deep Learning',
-            'Computer Vision', 'NLP', 'Generative AI'
-        ]
-        
-        found_keywords = []
-        text_lower = text.lower()
-        
-        for keyword in ai_keywords:
-            if keyword.lower() in text_lower:
-                found_keywords.append(keyword)
+                time.sleep(1)
                 
-        return found_keywords
+            return sorted(viral_content, key=lambda x: x['score'], reverse=True)[:10]
+        
+        except Exception as e:
+            logger.error(f"バズコンテンツ取得エラー: {e}")
+            return []
 
-    def generate_chikara_style_content(self, source_info):
-        """最新情報をチカラさんの口調で生成"""
+    def generate_natural_buzz_tweet(self, content_info):
+        """人間らしい自然なバズ記事ツイート生成"""
         
-        # チカラさんの口調パターン
+        # 自然な導入
         intro_patterns = [
-            "最新のAI情報チェックしてたら",
-            "AI界隈で話題になってる",
-            "今朝見つけたAIニュースで",
-            "AIトレンド調べてたら",
-            "気になるAI情報発見！"
+            "海外でこの記事がめちゃくちゃバズってる！",
+            "この海外の記事、すごい話題になってる",
+            "海外AI界隈でこれが大注目されてる",
+            "向こうでバズってるこの記事見て驚いた",
+            "海外のAI業界でこれが話題沸騰中",
+            "海外でこれがトレンド入りしてる",
+            "この記事、海外で大反響呼んでる"
         ]
         
+        # AI技術への感想パターン
         reaction_patterns = [
-            "これすごくない？",
-            "想像以上にすごい",
-            "これは革命的だと思う",
-            "技術の進歩が早すぎる",
-            "もう未来が来てる感じ"
+            "想像以上の精度で驚いた",
+            "技術の進歩が早すぎる", 
+            "これは制作現場を変える",
+            "実用レベルに到達してる",
+            "映像制作の概念が変わりそう",
+            "クオリティが段違いになってる",
+            "プロ仕様の機能が無料とか信じられない",
+            "これまでの常識を覆す技術"
         ]
         
-        question_patterns = [
-            "みんなはどう思う？",
-            "使ってみた人いる？",
-            "これについてどう感じる？",
-            "みんなの意見聞かせて",
-            "感想教えて"
+        # 具体的な活用シーン
+        application_patterns = [
+            "映像制作での活用方法を考えてる",
+            "クライアントワークでも使えそう",
+            "制作時間の短縮に直結しそう",
+            "VJ映像制作に応用できるかも",
+            "リアルタイム処理での可能性を感じる",
+            "アイデア出しから完成まで一貫してできそう",
+            "予算の少ないプロジェクトでも高品質が実現できる"
         ]
         
-        # コンテンツ生成
+        # 自然な終わり方（質問なし）
+        ending_patterns = [
+            "実際使ったらまた報告する",
+            "これは期待大だな", 
+            "早く試してみたい",
+            "制作現場で活用してみる予定",
+            "また新しい発見があったらシェアする",
+            "これで作業効率が変わりそう",
+            "技術の進歩が本当にすごい",
+            "導入を本格的に検討してる",
+            "クリエイティブの可能性が広がる"
+        ]
+        
+        # タイトルからAI関連キーワード抽出
+        title = content_info['title'].lower()
+        ai_tools = ['gpt', 'chatgpt', 'openai', 'midjourney', 'dall-e', 'stable diffusion', 
+                   'flux', 'claude', 'gemini', 'sora', 'kling', 'veo', 'runway']
+        
+        mentioned_tool = None
+        for tool in ai_tools:
+            if tool in title:
+                mentioned_tool = tool.upper()
+                break
+        
+        # 投稿生成
         intro = random.choice(intro_patterns)
-        reaction = random.choice(reaction_patterns)
-        question = random.choice(question_patterns)
         
-        # 情報源に応じた内容生成
-        if source_info['type'] == 'reddit':
-            content = f"{intro} {source_info['title'][:50]}... {reaction} {question}"
-        elif source_info['type'] == 'news':
-            content = f"{intro} {source_info['title'][:50]}... {reaction} {question}"
-        elif source_info['type'] == 'github':
-            content = f"GitHubで{source_info['name']}っていうAIプロジェクトが話題！{reaction} {question}"
+        # メイン内容（タイトル要約）
+        if mentioned_tool:
+            main_content = f"{mentioned_tool}の新機能、{random.choice(reaction_patterns).replace('これは', 'これ')}。"
         else:
-            # フォールバック用の固定コンテンツ
-            topics = [
-                "Midjourney V7のパーソナライゼーション機能",
-                "Flux AIの無料高品質生成",
-                "Veo3の音付き8秒動画",
-                "Kling AIの自然な動き生成",
-                "AI画像生成の最新進歩"
-            ]
-            topic = random.choice(topics)
-            content = f"{topic}について調べてみた。{reaction} {question}"
+            main_content = f"AI画像生成技術、{random.choice(reaction_patterns)}。"
         
-        # 文字数制限（280文字以内）
-        if len(content) > 280:
-            content = content[:277] + "..."
-            
-        return content
+        # 活用への言及
+        application = random.choice(application_patterns)
+        
+        # 終わり方
+        ending = random.choice(ending_patterns)
+        
+        # 全体構成
+        tweet_content = f"{intro}\n\n{main_content}\n{application}。\n\n{ending}。"
+        
+        # 文字数調整（280文字制限）
+        if len(tweet_content) > 280:
+            # 長い場合は短縮版
+            short_content = f"{intro}\n\n{main_content}\n\n{ending}。"
+            if len(short_content) > 280:
+                tweet_content = short_content[:277] + "..."
+            else:
+                tweet_content = short_content
+        
+        return tweet_content
+
+    def generate_fallback_tweet(self):
+        """バズ記事がない時のフォールバック投稿"""
+        
+        ai_topics = [
+            "Midjourney V7のパーソナライゼーション機能",
+            "Flux AIの無料高品質生成", 
+            "Veo3の音付き8秒動画生成",
+            "Kling AIの自然な動き表現",
+            "Claude 3.5の推論能力向上",
+            "DALL-E 3の画質改善",
+            "Stable Diffusion 3の精度向上"
+        ]
+        
+        personal_comments = [
+            "制作現場での活用を検討してる",
+            "実際に使ってみて驚いた",
+            "クライアントワークでも使えそう", 
+            "映像制作の効率が格段に上がる",
+            "VJ映像制作での可能性を感じる"
+        ]
+        
+        endings = [
+            "また新しい発見があったら報告する",
+            "導入して本格活用してみる予定",
+            "技術の進歩に毎日驚かされる",
+            "クリエイティブの幅が確実に広がってる"
+        ]
+        
+        topic = random.choice(ai_topics)
+        comment = random.choice(personal_comments)
+        ending = random.choice(endings)
+        
+        return f"{topic}について調べてた。\n{comment}。\n\n{ending}。"
 
     def avoid_duplicate_content(self):
-        """重複投稿チェック（簡易版）"""
+        """重複投稿チェック"""
         try:
-            # 自分の最新5ツイートを取得
             recent_tweets = self.api.user_timeline(count=5, tweet_mode='extended')
             recent_content = [tweet.full_text for tweet in recent_tweets]
             return recent_content
@@ -231,133 +211,9 @@ class AITweetBot:
             logger.warning(f"重複チェックエラー: {e}")
             return []
 
-    def calculate_engagement_score(self, content):
-        """エンゲージメントスコア計算"""
-        score = 0
-        
-        # 質問形式
-        if '？' in content or '?' in content:
-            score += 10
-            
-        # 感情表現
-        emotion_words = ['すごい', '革命的', '未来', '驚き', 'ヤバイ']
-        for word in emotion_words:
-            if word in content:
-                score += 5
-                
-        # AI関連キーワード
-        ai_keywords = self.extract_ai_keywords(content)
-        score += len(ai_keywords) * 3
-        
-        # 文字数（140-200文字が理想）
-        length = len(content)
-        if 140 <= length <= 200:
-            score += 15
-        elif 100 <= length <= 250:
-            score += 10
-            
-        return score
-
-    def generate_tweet(self):
-        """メイン投稿生成メソッド"""
-        try:
-            # 最新情報収集
-            logger.info("最新AI情報を収集中...")
-            
-            reddit_trends = self.get_reddit_ai_trends()
-            ai_news = self.get_ai_news_feeds()
-            github_projects = self.get_github_ai_trends()
-            
-            # 情報ソース選択
-            all_sources = []
-            
-            for trend in reddit_trends[:3]:
-                all_sources.append({
-                    'type': 'reddit',
-                    'title': trend['title'],
-                    'score': trend['score']
-                })
-                
-            for news in ai_news[:3]:
-                all_sources.append({
-                    'type': 'news', 
-                    'title': news['title']
-                })
-                
-            for project in github_projects[:2]:
-                all_sources.append({
-                    'type': 'github',
-                    'name': project['name'],
-                    'description': project['description']
-                })
-            
-            # コンテンツ候補生成
-            content_candidates = []
-            
-            if all_sources:
-                for source in all_sources[:5]:  # 上位5つのソース
-                    content = self.generate_chikara_style_content(source)
-                    engagement_score = self.calculate_engagement_score(content)
-                    
-                    content_candidates.append({
-                        'content': content,
-                        'score': engagement_score,
-                        'source': source
-                    })
-            
-            # フォールバック用固定コンテンツ
-            fallback_sources = [
-                {'type': 'fallback', 'title': 'AI画像生成技術の最新動向'},
-                {'type': 'fallback', 'title': 'AI動画生成ツールの比較'},
-                {'type': 'fallback', 'title': 'プロンプトエンジニアリングのコツ'}
-            ]
-            
-            for fallback in fallback_sources:
-                content = self.generate_chikara_style_content(fallback)
-                engagement_score = self.calculate_engagement_score(content)
-                content_candidates.append({
-                    'content': content,
-                    'score': engagement_score,
-                    'source': fallback
-                })
-            
-            # 重複チェック
-            recent_tweets = self.avoid_duplicate_content()
-            
-            # 最適なコンテンツ選択
-            best_content = None
-            for candidate in sorted(content_candidates, key=lambda x: x['score'], reverse=True):
-                content = candidate['content']
-                
-                # 重複チェック
-                is_duplicate = False
-                for recent in recent_tweets:
-                    if self.similarity_check(content, recent) > 0.7:
-                        is_duplicate = True
-                        break
-                
-                if not is_duplicate:
-                    best_content = content
-                    logger.info(f"選択されたコンテンツ (スコア: {candidate['score']}): {content[:50]}...")
-                    break
-            
-            return best_content or content_candidates[0]['content']  # フェイルセーフ
-            
-        except Exception as e:
-            logger.error(f"ツイート生成エラー: {e}")
-            
-            # エラー時のフォールバック
-            fallback_tweets = [
-                "AI技術の進歩、日々感じることが多い。みんなは最近どんなAIツール使ってる？",
-                "画像生成AIの精度向上がすごい。制作現場でも活用の幅が広がってる。みんなの使い方教えて",
-                "動画生成AIも実用レベルになってきた。映像制作の未来が楽しみ。どう思う？"
-            ]
-            return random.choice(fallback_tweets)
-
     def similarity_check(self, text1, text2):
-        """テキスト類似度チェック（簡易版）"""
+        """テキスト類似度チェック"""
         try:
-            # 単語レベルでの類似度計算
             words1 = set(text1.split())
             words2 = set(text2.split())
             
@@ -367,6 +223,60 @@ class AITweetBot:
             return len(intersection) / len(union) if union else 0
         except:
             return 0
+
+    def generate_tweet(self):
+        """メイン投稿生成"""
+        try:
+            logger.info("バズ記事情報収集中...")
+            
+            # バズ記事取得
+            viral_content = self.get_viral_ai_content()
+            
+            # 重複チェック
+            recent_tweets = self.avoid_duplicate_content()
+            
+            # 投稿候補生成
+            tweet_candidates = []
+            
+            # バズ記事ベース投稿
+            for content in viral_content[:5]:
+                tweet = self.generate_natural_buzz_tweet(content)
+                
+                # 重複チェック
+                is_duplicate = False
+                for recent in recent_tweets:
+                    if self.similarity_check(tweet, recent) > 0.6:
+                        is_duplicate = True
+                        break
+                
+                if not is_duplicate:
+                    tweet_candidates.append(tweet)
+            
+            # フォールバック投稿も追加
+            for _ in range(3):
+                fallback_tweet = self.generate_fallback_tweet()
+                
+                is_duplicate = False
+                for recent in recent_tweets:
+                    if self.similarity_check(fallback_tweet, recent) > 0.6:
+                        is_duplicate = True
+                        break
+                
+                if not is_duplicate:
+                    tweet_candidates.append(fallback_tweet)
+            
+            # ランダム選択
+            if tweet_candidates:
+                selected_tweet = random.choice(tweet_candidates)
+                logger.info(f"選択されたツイート: {selected_tweet[:50]}...")
+                return selected_tweet
+            
+            # 最終フォールバック
+            return self.generate_fallback_tweet()
+            
+        except Exception as e:
+            logger.error(f"ツイート生成エラー: {e}")
+            return "AI技術の進歩、日々感じることが多い。制作現場での活用方法を常に模索してる。"
 
     def post_tweet(self):
         """ツイート投稿実行"""
@@ -385,9 +295,6 @@ class AITweetBot:
             
             return True
             
-        except tweepy.TooManyRequests:
-            logger.warning("Twitter API制限に達しました")
-            return False
         except Exception as e:
             logger.error(f"ツイート投稿エラー: {e}")
             return False
