@@ -1,14 +1,12 @@
-import tweepy
 import os
 import random
 import logging
 import requests
-from datetime import datetime, timezone
+from datetime import datetime
 import feedparser
 import json
 import time
 from bs4 import BeautifulSoup
-import re
 
 # ログ設定
 logging.basicConfig(
@@ -19,25 +17,78 @@ logger = logging.getLogger(__name__)
 
 class AITweetBot:
     def __init__(self):
-        self.api = self.authenticate_twitter()
+        self.bearer_token = os.environ.get('TWITTER_BEARER_TOKEN')
+        self.client_id = os.environ.get('TWITTER_CLIENT_ID')
+        self.client_secret = os.environ.get('TWITTER_CLIENT_SECRET')
         
-    def authenticate_twitter(self):
+    def get_oauth2_bearer_token(self):
+        """OAuth 2.0 Bearer Token取得"""
         try:
-            auth = tweepy.OAuthHandler(
-                os.environ['TWITTER_API_KEY'],
-                os.environ['TWITTER_API_SECRET']
-            )
-            auth.set_access_token(
-                os.environ['TWITTER_ACCESS_TOKEN'],
-                os.environ['TWITTER_ACCESS_TOKEN_SECRET']
-            )
-            api = tweepy.API(auth, wait_on_rate_limit=True)
-            api.verify_credentials()
-            logger.info("Twitter API認証成功")
-            return api
+            auth_url = "https://api.twitter.com/oauth2/token"
+            
+            auth_headers = {
+                'Authorization': f'Basic {self.encode_credentials()}',
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            }
+            
+            auth_data = {
+                'grant_type': 'client_credentials'
+            }
+            
+            response = requests.post(auth_url, headers=auth_headers, data=auth_data)
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                return token_data.get('access_token')
+            else:
+                logger.error(f"Bearer Token取得エラー: {response.status_code} - {response.text}")
+                return None
+                
         except Exception as e:
-            logger.error(f"Twitter API認証エラー: {e}")
-            raise
+            logger.error(f"OAuth 2.0認証エラー: {e}")
+            return None
+    
+    def encode_credentials(self):
+        """認証情報のBase64エンコード"""
+        import base64
+        credentials = f"{self.client_id}:{self.client_secret}"
+        return base64.b64encode(credentials.encode()).decode()
+    
+    def post_tweet_v2(self, text):
+        """Twitter API v2でツイート投稿"""
+        try:
+            if self.bearer_token:
+                access_token = self.bearer_token
+            else:
+                access_token = self.get_oauth2_bearer_token()
+                
+            if not access_token:
+                logger.error("アクセストークンの取得に失敗")
+                return False
+            
+            url = "https://api.twitter.com/2/tweets"
+            
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json'
+            }
+            
+            data = {
+                'text': text
+            }
+            
+            response = requests.post(url, headers=headers, json=data)
+            
+            if response.status_code == 201:
+                logger.info("ツイート投稿成功")
+                return True
+            else:
+                logger.error(f"ツイート投稿エラー: {response.status_code} - {response.text}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"ツイート投稿例外エラー: {e}")
+            return False
 
     def get_viral_ai_content(self):
         """海外でバズってるAI記事・情報を収集"""
@@ -50,7 +101,7 @@ class AITweetBot:
             for subreddit in subreddits:
                 try:
                     url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=5"
-                    headers = {'User-Agent': 'AI-Tweet-Bot/1.0'}
+                    headers = {'User-Agent': 'AI-Tweet-Bot/2.0'}
                     response = requests.get(url, headers=headers, timeout=10)
                     
                     if response.status_code == 200:
@@ -62,7 +113,6 @@ class AITweetBot:
                                     'title': post_data['title'],
                                     'score': post_data['ups'],
                                     'source': 'reddit',
-                                    'url': post_data['url'],
                                     'subreddit': subreddit
                                 })
                 except Exception as e:
@@ -201,29 +251,6 @@ class AITweetBot:
         
         return f"{topic}について調べてた。\n{comment}。\n\n{ending}。"
 
-    def avoid_duplicate_content(self):
-        """重複投稿チェック"""
-        try:
-            recent_tweets = self.api.user_timeline(count=5, tweet_mode='extended')
-            recent_content = [tweet.full_text for tweet in recent_tweets]
-            return recent_content
-        except Exception as e:
-            logger.warning(f"重複チェックエラー: {e}")
-            return []
-
-    def similarity_check(self, text1, text2):
-        """テキスト類似度チェック"""
-        try:
-            words1 = set(text1.split())
-            words2 = set(text2.split())
-            
-            intersection = words1.intersection(words2)
-            union = words1.union(words2)
-            
-            return len(intersection) / len(union) if union else 0
-        except:
-            return 0
-
     def generate_tweet(self):
         """メイン投稿生成"""
         try:
@@ -232,38 +259,18 @@ class AITweetBot:
             # バズ記事取得
             viral_content = self.get_viral_ai_content()
             
-            # 重複チェック
-            recent_tweets = self.avoid_duplicate_content()
-            
             # 投稿候補生成
             tweet_candidates = []
             
             # バズ記事ベース投稿
             for content in viral_content[:5]:
                 tweet = self.generate_natural_buzz_tweet(content)
-                
-                # 重複チェック
-                is_duplicate = False
-                for recent in recent_tweets:
-                    if self.similarity_check(tweet, recent) > 0.6:
-                        is_duplicate = True
-                        break
-                
-                if not is_duplicate:
-                    tweet_candidates.append(tweet)
+                tweet_candidates.append(tweet)
             
             # フォールバック投稿も追加
             for _ in range(3):
                 fallback_tweet = self.generate_fallback_tweet()
-                
-                is_duplicate = False
-                for recent in recent_tweets:
-                    if self.similarity_check(fallback_tweet, recent) > 0.6:
-                        is_duplicate = True
-                        break
-                
-                if not is_duplicate:
-                    tweet_candidates.append(fallback_tweet)
+                tweet_candidates.append(fallback_tweet)
             
             # ランダム選択
             if tweet_candidates:
@@ -287,13 +294,16 @@ class AITweetBot:
                 logger.error("ツイートコンテンツの生成に失敗")
                 return False
                 
-            # 投稿実行
-            self.api.update_status(tweet_content)
+            # OAuth 2.0でツイート投稿
+            success = self.post_tweet_v2(tweet_content)
             
-            logger.info(f"ツイート投稿成功: {tweet_content}")
-            print(f"✅ 投稿完了: {tweet_content}")
-            
-            return True
+            if success:
+                logger.info(f"ツイート投稿成功: {tweet_content}")
+                print(f"✅ 投稿完了: {tweet_content}")
+            else:
+                logger.error("ツイート投稿に失敗")
+                
+            return success
             
         except Exception as e:
             logger.error(f"ツイート投稿エラー: {e}")
@@ -302,7 +312,7 @@ class AITweetBot:
 def main():
     """メイン実行関数"""
     try:
-        logger.info("AI自動ツイートボット開始")
+        logger.info("AI自動ツイートボット開始（OAuth 2.0）")
         
         bot = AITweetBot()
         success = bot.post_tweet()
