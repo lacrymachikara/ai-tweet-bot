@@ -1,0 +1,20 @@
+# 既存の ai-tweet-bot リポジトリで実行
+git checkout main
+git pull origin main
+
+# 既存ワークフローを無効化
+git mv .github/workflows/auto-tweet.yml .github/workflows/auto-tweet.yml.disabled
+
+# 新システムファイルを追加
+# (上記のすべてのコードファイルを追加)
+
+git add .
+git commit -m "🚀 無料枠最適化システム v2.0 デプロイ
+
+- 1日3投稿、月90投稿の制限内運用
+- 品質スコア0.8以上の高品質コンテンツのみ投稿  
+- 完全エラーハンドリング対応
+- リアルタイム使用量監視
+- 重複コンテンツ防止機能"
+
+git push origin main
