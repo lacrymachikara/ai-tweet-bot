@@ -1,33 +1,19 @@
-name: AI Tweet Bot
+name: Auto Tweet Bot (MAINTENANCE MODE)
+# 緊急メンテナンス: 無制限投稿を防止
 
 on:
-  schedule:
-    - cron: '0 0,1,3,5,7,9,11,13,15,16 * * *'  # JST時間での10回投稿
-  workflow_dispatch:  # 手動実行用
+  # 全自動実行を一時停止
+  # schedule:
+  #   - cron: '0 */2 * * *'  # 無効化
+  workflow_dispatch:  # 手動実行のみ残す
 
 jobs:
-  tweet:
+  maintenance:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        
-    - name: Install dependencies
+    - name: System Maintenance Notice
       run: |
-        python -m pip install --upgrade pip
-        pip install tweepy feedparser requests python-dotenv
-        
-    - name: Run AI Tweet Bot
-      env:
-        TWITTER_CLIENT_ID: ${{ secrets.TWITTER_CLIENT_ID }}
-        TWITTER_CLIENT_SECRET: ${{ secrets.TWITTER_CLIENT_SECRET }}
-        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-        TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-        TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
-      run: python src/tweet_bot.py
+        echo "🛠️ システムメンテナンス中"
+        echo "無料枠最適化システムへ移行中です"
+        echo "新システム: 1日3投稿、高品質重視"
+        echo "完了予定: 24時間以内"
