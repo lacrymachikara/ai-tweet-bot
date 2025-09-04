@@ -1,0 +1,136 @@
+name: Free Tier Optimized AI Tweet Bot v2.0
+
+on:
+  schedule:
+    # 1日3回実行 - 日本時間の最適時刻
+    - cron: '0 0 * * *'   # 09:00 JST (00:00 UTC)
+    - cron: '0 6 * * *'   # 15:00 JST (06:00 UTC)  
+    - cron: '0 12 * * *'  # 21:00 JST (12:00 UTC)
+  
+  workflow_dispatch:
+    inputs:
+      debug_mode:
+        description: 'デバッグモード実行'
+        required: false
+        default: 'false'
+        type: boolean
+      force_post:
+        description: '制限無視して投稿テスト'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  premium_quality_tweet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: 📂 Repository Checkout
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Setup Python Environment  
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+        
+    - name: 📦 Install Dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: 🔍 System Health Check
+      run: |
+        echo "🏥 システムヘルスチェック実行中..."
+        python -c "
+import os
+required_vars = ['TWITTER_BEARER_TOKEN', 'TWITTER_API_KEY', 'OPENAI_API_KEY']
+missing = [var for var in required_vars if not os.getenv(var)]
+if missing:
+    print(f'❌ 不足環境変数: {missing}')
+    exit(1)
+print('✅ 環境変数チェック完了')
+        "
+        
+    - name: 📊 Load Previous Usage Data
+      continue-on-error: true
+      uses: actions/cache@v3
+      with:
+        path: |
+          usage_data.json
+          content_hashes.json
+          bot_execution.log
+        key: bot-data-${{ github.run_number }}
+        restore-keys: |
+          bot-data-
+          
+    - name: 🚀 Execute Free Tier Optimized Bot
+      env:
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+        TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+        TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+        TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'false' }}
+        FORCE_POST: ${{ github.event.inputs.force_post || 'false' }}
+      run: |
+        echo "🎯 無料枠最適化Botシステム実行開始"
+        python free_tier_bot.py
+        
+    - name: 📈 Generate Usage Report
+      if: always()
+      run: |
+        echo "📊 使用状況レポート生成中..."
+        python -c "
+import json
+from datetime import datetime
+
+try:
+    with open('usage_data.json', 'r') as f:
+        data = json.load(f)
+    
+    print('📊 AI自動ツイートシステム - 使用状況レポート')
+    print('=' * 50)
+    print(f'実行時刻: {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")}')
+    print(f'本日投稿: {data.get(\"daily_count\", 0)}/3')
+    print(f'今月投稿: {data.get(\"monthly_count\", 0)}/90')
+    print(f'品質投稿: {data.get(\"quality_posts\", 0)}/{data.get(\"total_posts\", 0)}')
+    print(f'無料枠使用率: {(data.get(\"monthly_count\", 0) / 90) * 100:.1f}%')
+    
+    if 'post_history' in data and data['post_history']:
+        latest = data['post_history'][-1]
+        print(f'最終投稿: {latest.get(\"timestamp\", \"N/A\")}')
+        print(f'品質スコア: {latest.get(\"quality_score\", \"N/A\")}')
+        print(f'トピック: {latest.get(\"topic\", \"N/A\")}')
+    
+    print('=' * 50)
+    
+except FileNotFoundError:
+    print('❌ 使用データが見つかりません')
+except Exception as e:
+    print(f'❌ レポート生成エラー: {e}')
+        "
+        
+    - name: 📁 Archive System Logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: bot-system-logs-${{ github.run_number }}
+        path: |
+          usage_data.json
+          content_hashes.json
+          bot_execution.log
+          *.json
+        retention-days: 30
+        
+    - name: 💾 Save Usage Data for Next Run
+      if: always()
+      uses: actions/cache@v3
+      with:
+        path: |
+          usage_data.json
+          content_hashes.json
+          bot_execution.log
+        key: bot-data-${{ github.run_number }}
